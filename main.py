@@ -5,8 +5,11 @@ import Mafia
 import Villager
 import Doctor
 import asyncio
+import os
 
-token = "NjM3MDgwMzc4MTE2NTM4MzY4.XbI-Tg.ajDb5KnG3v30oySDXVrXzXGm9HU"
+token_path = open("E:/mafia_bot_token.txt", "r")
+token = token_path.readline()
+print("Token: {}".format(token))
 
 client = discord.Client()
 
@@ -81,7 +84,7 @@ async def on_message(message):
         player_count = len(players_names)
 
         # TODO: COMMENT BACK WHEN READY !
-        #if player_count < 3:
+        #if player_count < 4:
         #    await message.channel.send("Not enough players. Minimum of 4 is recommended.")
         #    return
 
@@ -154,12 +157,27 @@ async def on_message(message):
                     doctor_count -= 1
                     role_picked = True
 
-        for i in author_list:
+        # Send assigned roles to players
+        for author in author_list:
 
-            # TODO: cry tears of joy 
-            # await i.send("pls")
+            player_string = ""
+            role = ""
+            player_name = ""
+            author_string = str(author)
 
-            print(i)
+            # Make a string from a player object
+            for player in players_list:
+
+                player_string += player.name
+                player_string += "#"
+                player_string += player.discriminator
+
+                player_name += player.name
+                role += player.role
+
+            if author_string == player_string:
+                await author.send("Player name: {}\nYour role is: {}".format(player_name, role))
+
 
         for player in players_list:
             print("Name: {} and role: {}\n".format(player.name, player.role))
