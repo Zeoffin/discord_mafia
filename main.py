@@ -156,7 +156,7 @@ async def on_message(message):
 
         for i in author_list:
 
-            # TODO: cry tears of joy
+            # TODO: cry tears of joy 
             # await i.send("pls")
 
             print(i)
