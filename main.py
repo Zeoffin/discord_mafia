@@ -5,13 +5,14 @@ import Mafia
 import Villager
 import Doctor
 import asyncio
-import os
+from discord.ext import commands
 
 token_path = open("E:/mafia_bot_token.txt", "r")
 token = token_path.readline()
 print("Token: {}".format(token))
 
 client = discord.Client()
+commands = commands.Bot(command_prefix='.')
 
 # The list of player names and player unique discord ID's
 players_names = []
@@ -21,11 +22,23 @@ author_list = []
 
 day = True
 
+
 # On ready event- happens when bot is started up
 @client.event
 async def on_ready():
 
     print("Bot ready\n")
+
+
+# TODO: how do i mute everyone? :c
+@client.event
+async def mute(ctx, member: discord.Member):
+    role = discord.utils.get(ctx.guild.roles, name="Muted")
+    if not member:
+        await ctx.send("Specify a member")
+        return
+    await member.add_roles(role)
+    await ctx.send("Added roles!")
 
 
 @client.event
@@ -178,9 +191,25 @@ async def on_message(message):
             if author_string == player_string:
                 await author.send("Player name: {}\nYour role is: {}".format(player_name, role))
 
-
+        # for debugging reasons
         for player in players_list:
             print("Name: {} and role: {}\n".format(player.name, player.role))
+
+        await asyncio.sleep(3)
+        await message.channel.send("The first night is coming soon!")
+        await asyncio.sleep(10)
+
+        # THE GAME LOOOOOOOP
+
+        game_going = True
+
+        while game_going:
+
+            # Night
+
+            await message.channel.send("The night is about to begin!")
+            await asyncio.sleep(3)
+
 
 
 client.run(token)
