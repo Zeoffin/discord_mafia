@@ -1,3 +1,13 @@
+""""
+
+Discord bot made for playing the well known party game 'Mafia'.
+discord.py is used for communicating with discord.
+
+Made by: Zeoffin
+
+"""
+
+# Imports
 import random
 import discord
 import Player
@@ -5,14 +15,15 @@ import Mafia
 import Villager
 import Doctor
 import asyncio
-from discord.ext import commands
 
+# This is the path of token for the specific bot
 token_path = open("E:/mafia_bot_token.txt", "r")
 token = token_path.readline()
-print("Token: {}".format(token))
 
+print("Initializing bot")
+
+# Make a client object
 client = discord.Client()
-commands = commands.Bot(command_prefix='.')
 
 # The list of player names and player unique discord ID's
 players_names = []
@@ -20,7 +31,33 @@ players_id = []
 players_list = []
 author_list = []
 
-day = True
+# Global variable for night
+night = False
+
+# Global player that will be killed
+victim_name = ""
+
+# List of assigned roles
+mafia_list = []
+mafia_names_list = []
+
+
+# Global night variable, used in main game loop
+def set_night_to_true():
+    global night
+    night = True
+
+
+def set_night_to_false():
+    global night
+    night = False
+
+
+# The player that will be killed at night
+def victim_name_function(s):
+
+    global victim_name
+    victim_name += s
 
 
 # On ready event- happens when bot is started up
@@ -30,22 +67,37 @@ async def on_ready():
     print("Bot ready\n")
 
 
-# TODO: how do i mute everyone? :c
-@client.event
-async def mute(ctx, member: discord.Member):
-    role = discord.utils.get(ctx.guild.roles, name="Muted")
-    if not member:
-        await ctx.send("Specify a member")
-        return
-    await member.add_roles(role)
-    await ctx.send("Added roles!")
-
-
+# on_message happens when discord user writes specific commands for the bot
 @client.event
 async def on_message(message):
 
     if message.author == client.user:
         return
+
+    # The command for mafia to kill
+    if message.content.startswith("!kill"):
+
+        for i in mafia_list:
+
+            # Make sure only those who are mafia can use the '!kill' command
+            print(i)
+            if str(i) != str(message.author):
+                return
+
+            # Check if it is night time or not
+            elif str(i) == str(message.author) and not night:
+                await message.author.send("You can only vote to kill during the night.")
+
+            elif str(i) == str(message.author) and night:
+
+                string_split = str(message.content).split(' ')
+                victim_name_function(string_split[1])
+
+                # Check if input is correct
+                for player in players_names:
+
+                    if player.name == victim_name and player.alive and player.role != Mafia.Mafia.role_name:
+                        print("Player to be killed: {}".format(victim_name))
 
     # Lets the users see the players that will be playing the game
     if message.content.startswith("!players"):
@@ -57,6 +109,7 @@ async def on_message(message):
             await message.channel.send("No one has joined yet")
             return
 
+        # Returns all the players ready for the next game of mafia
         for i in players_names:
             names_list += "{}) ".format(count)
             names_list += str(i)
@@ -75,7 +128,7 @@ async def on_message(message):
                 await message.channel.send("{} already had joined".format(message.author.name))
                 return
 
-        # Make an Player object
+        # Make an Player object.  None - role to be assigned later.  True - default alive status
         player = Player.Player(message.author.name, message.author.discriminator, None, True)
 
         # Places them into lists
@@ -88,6 +141,7 @@ async def on_message(message):
 
         players_names.append(player.name)
         players_id.append(player.discriminator)
+
         await message.channel.send("Joined next game")
 
     # Starts the game
@@ -105,6 +159,7 @@ async def on_message(message):
         count = 1
         names_list = ""
 
+        # Get the list of all players that are about to start playing the game
         for i in players_names:
             names_list += "{}) ".format(count)
             names_list += str(i)
@@ -171,25 +226,45 @@ async def on_message(message):
                     role_picked = True
 
         # Send assigned roles to players
-        for author in author_list:
+        for player in players_list:
 
             player_string = ""
             role = ""
             player_name = ""
-            author_string = str(author)
+
+            player_string += player.name
+            player_string += "#"
+            player_string += player.discriminator
+
+            player_name += player.name
+            role += player.role
 
             # Make a string from a player object
-            for player in players_list:
+            for author in author_list:
 
-                player_string += player.name
-                player_string += "#"
-                player_string += player.discriminator
+                author_string = str(author)
 
-                player_name += player.name
-                role += player.role
+                if author_string == player_string:
 
-            if author_string == player_string:
-                await author.send("Player name: {}\nYour role is: {}".format(player_name, role))
+                    await author.send("Player name: {}\nYour role is: {}".format(player_name, role))
+                    print("Sending roles")
+
+                    # If a player gets the mafia role, add it to the list of all mafias
+                    if player.role == Mafia.Mafia.role_name:
+                        mafia_list.append(author)
+                        mafia_names_list.append(player.name)
+
+        # Send the mafia all other members of their team
+        for mafia in mafia_list:
+
+            mafia_string = ""
+            count = 1
+
+            for i in mafia_names_list:
+                mafia_string += "{}) {}\n".format(count, i)
+                count += 1
+
+            await mafia.send("All Mafia members:\n" + mafia_string)
 
         # for debugging reasons
         for player in players_list:
@@ -199,9 +274,10 @@ async def on_message(message):
         await message.channel.send("The first night is coming soon!")
         await asyncio.sleep(10)
 
-        # THE GAME LOOOOOOOP
+        # THE GAME LOOP
 
         game_going = True
+        night_count = 1
 
         while game_going:
 
@@ -209,7 +285,40 @@ async def on_message(message):
 
             await message.channel.send("The night is about to begin!")
             await asyncio.sleep(3)
+            await message.channel.send("Night {}".format(night_count))
 
+            set_night_to_true()
 
+            for mafia in mafia_list:
+
+                count = 1
+                not_mafia_string = ""
+
+                for player in players_list:
+
+                    if player.alive is True and player.role is not Mafia.Mafia.role_name:
+                        not_mafia_string += "{}) {}\n".format(count, player.name)
+                        count += 1
+
+                await mafia.send("To kill a player, type !kill 'name', where 'name' is a player's name from the list below:\n"
+                                 + not_mafia_string + "\n Player with the most votes will be killed this night.")
+
+            await asyncio.sleep(20)
+            await message.channel.send("Night time! 10 seconds remaining!")
+            await asyncio.sleep(5)
+
+            for i in range(5, 0, -1):
+
+                if i == 1:
+                    await message.channel.send("Night ending soon! 1 second remaining!")
+
+                else:
+                    await message.channel.send("Night ending soon! {} seconds remaining!".format(i))
+
+                await asyncio.sleep(1)
+
+            night_count += 1
+
+            await message.channel.send("It is day time!")
 
 client.run(token)
